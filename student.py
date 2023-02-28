@@ -6,9 +6,6 @@ from bson import json_util
 
 app = Flask(__name__)
 
-
-# app.config['MONGO_URI'] = "mongodb+srv://raghavintern:<patiala1034>@cluster0.cucbwel.mongodb.net/?retryWrites=true&w=majority"
-
 client = MongoClient(os.environ.get('MONGO_URI'))
 db = client['user']
 user_collection = db['Students']
