@@ -7,7 +7,6 @@ from bson.errors import InvalidId
 from models.classes import User
 app = Flask(__name__)
 
-
 client = MongoClient(os.environ.get('MONGO_URI'))
 db = client['user']
 user_collection = db['Students']
