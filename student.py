@@ -3,16 +3,21 @@ from pymongo import MongoClient
 from bson import ObjectId
 import os
 from bson import json_util
-
+from bson.errors import InvalidId
+from models.classes import User
 app = Flask(__name__)
 
-
-# app.config['MONGO_URI'] = "mongodb+srv://raghavintern:<patiala1034>@cluster0.cucbwel.mongodb.net/?retryWrites=true&w=majority"
 
 client = MongoClient(os.environ.get('MONGO_URI'))
 db = client['user']
 user_collection = db['Students']
 
+
+@app.errorhandler(InvalidId)
+def handle_invalid_id(error):
+    response = jsonify({'error': 'Given id is not a valid objectid'})
+    response.status_code = 404
+    return response
 
 
 @app.route('/users', methods=['GET'])
@@ -22,38 +27,39 @@ def get_all_users():
 
 
 @app.route('/users/<id>', methods=['GET'])
-def get_user(id):
-    user = user_collection.find_one({'_id': ObjectId(id)})
-    if user:
+def get_user_by_id(id):
+    try:
+        user = user_collection.find_one({'_id': ObjectId(id)})
+        if user is None:
+            return json_util.dumps({'error': 'User not found'})
         return json_util.dumps({'user': user})
-    else:
-        return jsonify({'error': 'User not found'}), 404
+    except InvalidId:
+        return handle_invalid_id(InvalidId())
 
 
 @app.route('/users', methods=['POST'])
 def create_user():
-    new_user = {
-        'name': request.json['name'],
-        'marks': request.json['marks'],
-        'roll_number': request.json['roll_number'],
-        'address': request.json['address']
-    }
-    result = user_collection.insert_one(new_user)
+    try:
+        user = User.from_dict(request.json)
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': str(e)}), 400
+
+    result = user_collection.insert_one(user.to_dict())
     return jsonify({'id': str(result.inserted_id)})
 
 
 @app.route('/users/<id>', methods=['DELETE'])
 def delete_user(id):
-    result = user_collection.delete_one({'_id': ObjectId(id)})
-    if result.deleted_count == 1:
-        return jsonify({'message': 'User deleted successfully'})
-    else:
-        return jsonify({'error': 'User not found'}), 404
+    try:
+        result = user_collection.delete_one({'_id': ObjectId(id)})
+        if result.deleted_count == 1:
+            return jsonify({'message': 'User deleted successfully'})
+        return json_util.dumps({'error': 'User not found'})
+    except InvalidId:
+        return handle_invalid_id(InvalidId())
 
 
-
-
-@app.route('/users/<id>', methods=['PATCH'])
+@app.route('/users/<id>', methods=['PUT'])
 def update_user_roll_number(id):
     result = user_collection.update_one(
         {'_id': ObjectId(id)},
@@ -67,3 +73,6 @@ def update_user_roll_number(id):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+
